@@ -3,4 +3,5 @@ pub mod cli;
 pub mod detect;
 pub mod input;
 pub mod osc52;
+pub mod selection;
 pub mod terminal;

@@ -9,8 +9,9 @@ short, factual, and current. `AGENTS.md` defines the required update protocol.
 
 **Phase:** M0 complete; M1 complete; M2 in progress.
 
-**Next action:** Implement and test deterministic backend selection for explicit
-`--backend`, SSH, and WSL signals.
+**Next action:** Wire backend selection into the CLI and implement `--diagnose`
+output that reports detected signals and the selected route without exposing
+environment values or clipboard content.
 
 **Blockers:** None. Terminal and WSL behavior has not been manually validated.
 
@@ -20,7 +21,7 @@ short, factual, and current. `AGENTS.md` defines the required update protocol.
 |---|---|---|
 | M0 Project contract | Done | Agent guide, implementation plan, and tracker created |
 | M1 Tested core | Done | Zero-dependency crate, CLI parsing, stdin, Base64, and OSC 52 core |
-| M2 Terminal transports | In progress | Direct output, `tmux` passthrough, and environment snapshot; `--diagnose` remains |
+| M2 Terminal transports | In progress | Direct output, `tmux` passthrough, environment snapshot, and backend selection; CLI wiring and `--diagnose` remain |
 | M3 WSL and SSH vertical slice | Pending | Primary user value |
 | M4 Product hardening | Pending | Required before first release |
 | M5 macOS | Pending | Requires a Mac or hosted macOS runner for final validation |
@@ -31,8 +32,9 @@ Use only these status values: `Pending`, `In progress`, `Blocked`, `Done`.
 
 ## Active task
 
-Implement deterministic backend selection for explicit `--backend`, SSH, and
-WSL signals, with focused tests.
+Wire backend selection into the CLI and implement `--diagnose` output that
+reports detected signals and the selected route without exposing environment
+values or clipboard content.
 
 ## Decisions
 
@@ -52,6 +54,11 @@ WSL signals, with focused tests.
 - Environment detection captures only non-empty presence signals for SSH,
   WSL, tmux, screen, Wayland, and X11; it does not retain or print variable
   values.
+- Backend selection prefers OSC 52 in SSH sessions, including SSH nested in
+  WSL; otherwise WSL selects its built-in `clip.exe` fallback. Explicit
+  `--backend=osc52` overrides automatic selection, while `--backend=wsl-clip`
+  is valid only in WSL. Current environment signals cannot verify terminal OSC
+  52 support, so WSL does not automatically select OSC 52.
 - GPT-6 Luna is preferred for focused implementation, GPT-6 Sol for correctness
   review and integration, and GPT-6 Astra only for unresolved difficult work.
 
@@ -77,6 +84,8 @@ Validation:
   dependencies.
 - `cargo fmt --all -- --check` — passed after formatting.
 - `git diff --check` — passed.
+- After deterministic selection: formatting, all 26 tests, Clippy, dependency
+  tree, and whitespace checks passed.
 - No direct-terminal, tmux-session, WSL, or SSH end-to-end behavior has been
   manually validated.
 
@@ -113,6 +122,20 @@ Record commands and outcomes here, distinguishing:
   `src/terminal/{mod,direct,tmux}.rs`.
 - The binary entry point is not wired to the library yet; `--diagnose`,
   selection, actual terminal/multiplexer delivery, and WSL/SSH validation remain.
+
+### 2026-11-11 — Deterministic backend selection
+
+- Added a pure backend selector and focused tests for explicit selection, SSH
+  precedence, WSL fallback, unsupported choices, and undetected environments.
+- Automatic selection chooses OSC 52 for SSH (including SSH inside WSL),
+  `wsl-clip` for WSL otherwise, and returns an explicit error when no supported
+  environment is detected. No terminal capability verification is inferred
+  from presence signals.
+- Changed: `src/selection.rs`, `src/lib.rs`, and this progress tracker.
+- Formatting, all 26 tests, Clippy, dependency-tree, and whitespace checks
+  passed. No platform or terminal behavior was manually validated.
+- The selector is not yet wired into the binary; the next task is CLI
+  integration and `--diagnose`.
 
 ## New-session kickoff
 
