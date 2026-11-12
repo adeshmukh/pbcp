@@ -7,13 +7,12 @@ short, factual, and current. `AGENTS.md` defines the required update protocol.
 
 ## Current state
 
-**Phase:** M0 complete; M1 complete; M2 in progress.
+**Phase:** M0 complete; M1 complete; M2 complete; M3 pending.
 
-**Next action:** Wire backend selection into the CLI and implement `--diagnose`
-output that reports detected signals and the selected route without exposing
-environment values or clipboard content.
+**Next action:** Implement the WSL `clip.exe` backend with explicit process and
+input errors, then add focused tests for bytes and process failures.
 
-**Blockers:** None. Terminal and WSL behavior has not been manually validated.
+**Blockers:** Clipboard contents have not been manually inspected after a copy.
 
 ## Milestone status
 
@@ -21,8 +20,8 @@ environment values or clipboard content.
 |---|---|---|
 | M0 Project contract | Done | Agent guide, implementation plan, and tracker created |
 | M1 Tested core | Done | Zero-dependency crate, CLI parsing, stdin, Base64, and OSC 52 core |
-| M2 Terminal transports | In progress | Direct output, `tmux` passthrough, environment snapshot, and backend selection; CLI wiring and `--diagnose` remain |
-| M3 WSL and SSH vertical slice | Pending | Primary user value |
+| M2 Terminal transports | Done | CLI wiring, direct output, `tmux` and `screen` passthrough, selection, and presence-only `--diagnose` |
+| M3 WSL and SSH vertical slice | Pending | WSL `clip.exe` backend is next; OSC 52 path is wired; end-to-end clipboard validation remains |
 | M4 Product hardening | Pending | Required before first release |
 | M5 macOS | Pending | Requires a Mac or hosted macOS runner for final validation |
 | M6 Local graphical Linux | Pending | Wayland and X11 lifecycle work |
@@ -32,9 +31,8 @@ Use only these status values: `Pending`, `In progress`, `Blocked`, `Done`.
 
 ## Active task
 
-Wire backend selection into the CLI and implement `--diagnose` output that
-reports detected signals and the selected route without exposing environment
-values or clipboard content.
+Implement the WSL `clip.exe` backend with explicit process and input errors,
+then add focused tests for bytes and process failures.
 
 ## Decisions
 
@@ -59,6 +57,9 @@ values or clipboard content.
   `--backend=osc52` overrides automatic selection, while `--backend=wsl-clip`
   is valid only in WSL. Current environment signals cannot verify terminal OSC
   52 support, so WSL does not automatically select OSC 52.
+- Mux passthrough is byte-tested separately for tmux and GNU screen. When both
+  environment signals are present, transport is rejected rather than guessing
+  the nesting order.
 - GPT-6 Luna is preferred for focused implementation, GPT-6 Sol for correctness
   review and integration, and GPT-6 Astra only for unresolved difficult work.
 
@@ -86,6 +87,12 @@ Validation:
 - `git diff --check` — passed.
 - After deterministic selection: formatting, all 26 tests, Clippy, dependency
   tree, and whitespace checks passed.
+- M2 completion: `cargo fmt --all -- --check`, `cargo test --all-targets` (35
+  tests passed), `cargo clippy --all-targets -- -D warnings`, `cargo tree
+  --edges normal`, and `git diff --check` all passed. Automatic and forced
+  `--diagnose` smoke checks report signal presence and route without environment
+  values. This WSL2 host has `clip.exe`, `tmux`, and `screen`; no clipboard
+  contents were inspected.
 - No direct-terminal, tmux-session, WSL, or SSH end-to-end behavior has been
   manually validated.
 
@@ -136,6 +143,23 @@ Record commands and outcomes here, distinguishing:
   passed. No platform or terminal behavior was manually validated.
 - The selector is not yet wired into the binary; the next task is CLI
   integration and `--diagnose`.
+
+### 2026-11-11 — M2 terminal transports
+
+- Wired CLI execution to backend selection, standard input, OSC 52 generation,
+  controlling-terminal output, and selected terminal transport. Implemented
+  presence-only `--diagnose` reporting with explicit and automatic selection.
+- Added byte-tested GNU screen DCS passthrough alongside tmux; both being
+  detected together returns an explicit unsupported-nesting error rather than
+  guessing the order.
+- Changed: `src/diagnose.rs`, `src/lib.rs`, `src/main.rs`,
+  `src/terminal/{mod,screen}.rs`, and this tracker.
+- Formatting, all 35 tests, Clippy, dependency tree, whitespace checks, and
+  automatic/forced diagnostic smoke checks passed. No OSC 52 clipboard copy
+  was manually validated.
+- M2 is marked complete. After its commit is pushed, M3 starts with WSL
+  `clip.exe` process handling and tests. Clipboard inspection and end-to-end
+  SSH/terminal checks remain.
 
 ## New-session kickoff
 

@@ -1,6 +1,7 @@
 pub mod base64;
 pub mod cli;
 pub mod detect;
+pub mod diagnose;
 pub mod input;
 pub mod osc52;
 pub mod selection;
