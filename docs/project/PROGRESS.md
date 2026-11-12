@@ -9,11 +9,12 @@ short, factual, and current. `AGENTS.md` defines the required update protocol.
 
 **Phase:** M0 complete; M1 complete; M2 complete; M3 blocked.
 
-**Next action:** Validate remote SSH-to-local clipboard copying from a real SSH
-session in a supported OSC 52 terminal.
+**Next action:** Validate the OSC 52 sequence from `hop` in the actual local
+terminal and confirm the Windows clipboard receives the test text.
 
-**Blockers:** This WSL host has no SSH server or active remote SSH session, so
-the end-to-end SSH clipboard path cannot be manually validated here.
+**Blockers:** The tool session captures SSH output instead of delivering it to
+the user's local terminal emulator, so OSC 52 clipboard handling remains
+unverified.
 
 ## Milestone status
 
@@ -22,7 +23,7 @@ the end-to-end SSH clipboard path cannot be manually validated here.
 | M0 Project contract | Done | Agent guide, implementation plan, and tracker created |
 | M1 Tested core | Done | Zero-dependency crate, CLI parsing, stdin, Base64, and OSC 52 core |
 | M2 Terminal transports | Done | CLI wiring, direct output, `tmux` and `screen` passthrough, selection, and presence-only `--diagnose` |
-| M3 WSL and SSH vertical slice | Blocked | WSL `clip.exe` path implemented and manually validated, including from tmux; real remote SSH-to-local clipboard validation still needs an SSH host and supported terminal |
+| M3 WSL and SSH vertical slice | Blocked | WSL `clip.exe` path validated, including from tmux; `hop` delivered OSC 52 bytes over SSH to a PTY, but local terminal clipboard handling remains unverified |
 | M4 Product hardening | Pending | Required before first release |
 | M5 macOS | Pending | Requires a Mac or hosted macOS runner for final validation |
 | M6 Local graphical Linux | Pending | Wayland and X11 lifecycle work |
@@ -32,8 +33,8 @@ Use only these status values: `Pending`, `In progress`, `Blocked`, `Done`.
 
 ## Active task
 
-Validate remote SSH-to-local clipboard copying from a real SSH session in a
-supported OSC 52 terminal.
+Validate the OSC 52 sequence from `hop` in the actual local terminal and
+confirm the Windows clipboard receives the test text.
 
 ## Decisions
 
@@ -101,9 +102,10 @@ Validation:
   unit tests and 1 CLI integration test passed), `cargo clippy --all-targets
   -- -D warnings`, `cargo tree --edges normal`, and `git diff --check` all
   passed. The real WSL `clip.exe` path preserved a Unicode test marker without
-  a trailing newline; the same path passed from a tmux pane. An SSH-signalled
-  pseudo-terminal emitted the expected OSC 52 bytes, but no real SSH transport
-  or local-terminal clipboard path was available for validation.
+  a trailing newline; the same path passed from a tmux pane. The remote binary
+  on `hop` selected OSC 52 and delivered the expected bytes to an allocated
+  PTY over SSH. The actual local terminal's OSC 52 clipboard handling remains
+  unverified because tool output is captured rather than sent to that terminal.
 
 Record commands and outcomes here, distinguishing:
 
@@ -179,13 +181,15 @@ Record commands and outcomes here, distinguishing:
   using a stub `clip.exe`. The WSL host clipboard read-back confirmed Unicode
   and no trailing newline; the same WSL copy path worked inside a tmux pane.
 - An SSH-signalled pseudo-terminal emitted the expected OSC 52 sequence. This
-  is simulated environment/PTY validation, not a remote SSH test. The host has
-  no sshd or active SSH session, so the real SSH-to-local clipboard check is
-  blocked.
+  was followed by an actual SSH run on `hop`; the remote process selected OSC
+  52 and its bytes reached the SSH client's allocated PTY exactly. The tool
+  harness captures the bytes, so it cannot confirm the user's local terminal
+  processes OSC 52 into the Windows clipboard.
 - Changed: `src/wsl.rs`, `src/lib.rs`, `src/main.rs`, `tests/wsl_cli.rs`, and
   this tracker.
-- M3 remains blocked until a real remote SSH session can validate delivery to
-  the local terminal. No M4 work has started.
+- M3 remains blocked until OSC 52 is checked in the actual local terminal and
+  the Windows clipboard read back. The temporary binary was removed from `hop`.
+  No M4 work has started.
 
 ## New-session kickoff
 
