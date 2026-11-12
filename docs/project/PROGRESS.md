@@ -7,14 +7,12 @@ short, factual, and current. `AGENTS.md` defines the required update protocol.
 
 ## Current state
 
-**Phase:** M0 complete; M1 complete; M2 complete; M3 blocked.
+**Phase:** M0 complete; M1 complete; M2 complete; M3 complete.
 
-**Next action:** Validate the OSC 52 sequence from `hop` in the actual local
-terminal and confirm the Windows clipboard receives the test text.
+**Next action:** Set the default clipboard payload limit and decide whether
+users may override it; record the policy and add boundary tests.
 
-**Blockers:** The tool session captures SSH output instead of delivering it to
-the user's local terminal emulator, so OSC 52 clipboard handling remains
-unverified.
+**Blockers:** None.
 
 ## Milestone status
 
@@ -23,7 +21,7 @@ unverified.
 | M0 Project contract | Done | Agent guide, implementation plan, and tracker created |
 | M1 Tested core | Done | Zero-dependency crate, CLI parsing, stdin, Base64, and OSC 52 core |
 | M2 Terminal transports | Done | CLI wiring, direct output, `tmux` and `screen` passthrough, selection, and presence-only `--diagnose` |
-| M3 WSL and SSH vertical slice | Blocked | WSL `clip.exe` path validated, including from tmux; `hop` delivered OSC 52 bytes over SSH to a PTY, but local terminal clipboard handling remains unverified |
+| M3 WSL and SSH vertical slice | Done | WSL `clip.exe` validated directly and from tmux; user verified remote `hop` SSH OSC 52 delivery into the Windows clipboard |
 | M4 Product hardening | Pending | Required before first release |
 | M5 macOS | Pending | Requires a Mac or hosted macOS runner for final validation |
 | M6 Local graphical Linux | Pending | Wayland and X11 lifecycle work |
@@ -33,8 +31,8 @@ Use only these status values: `Pending`, `In progress`, `Blocked`, `Done`.
 
 ## Active task
 
-Validate the OSC 52 sequence from `hop` in the actual local terminal and
-confirm the Windows clipboard receives the test text.
+Set the default clipboard payload limit and decide whether users may override
+it; record the policy and add boundary tests.
 
 ## Decisions
 
@@ -104,8 +102,11 @@ Validation:
   passed. The real WSL `clip.exe` path preserved a Unicode test marker without
   a trailing newline; the same path passed from a tmux pane. The remote binary
   on `hop` selected OSC 52 and delivered the expected bytes to an allocated
-  PTY over SSH. The actual local terminal's OSC 52 clipboard handling remains
-  unverified because tool output is captured rather than sent to that terminal.
+  PTY over SSH. At that point, the actual local terminal's OSC 52 handling was
+  still unverified because the tool session captured output.
+- M3 manual validation completed by the user: copied the test binary to `hop`,
+  ran it over `ssh -tt` from the actual WSL terminal, and confirmed
+  `Get-Clipboard -Raw` returned `pbcp SSH validation: snowman ☃`.
 
 Record commands and outcomes here, distinguishing:
 
@@ -187,9 +188,12 @@ Record commands and outcomes here, distinguishing:
   processes OSC 52 into the Windows clipboard.
 - Changed: `src/wsl.rs`, `src/lib.rs`, `src/main.rs`, `tests/wsl_cli.rs`, and
   this tracker.
-- M3 remains blocked until OSC 52 is checked in the actual local terminal and
-  the Windows clipboard read back. The temporary binary was removed from `hop`.
-  No M4 work has started.
+- At the checkpoint, M3 was blocked on actual local-terminal verification.
+- The user then confirmed the remote SSH test updated the Windows clipboard
+  from the actual local terminal. M3 is complete; the temporary binary was
+  removed from `hop`.
+- No M4 implementation has started. The next task is to decide and test the
+  maximum input payload and override policy.
 
 ## New-session kickoff
 
