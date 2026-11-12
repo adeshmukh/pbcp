@@ -6,3 +6,4 @@ pub mod input;
 pub mod osc52;
 pub mod selection;
 pub mod terminal;
+pub mod wsl;

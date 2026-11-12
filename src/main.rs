@@ -4,6 +4,7 @@ use pbcp::input::read_input;
 use pbcp::osc52;
 use pbcp::selection::{select_backend, Backend};
 use pbcp::terminal::{self, select_transport};
+use pbcp::wsl;
 use std::io;
 
 fn main() {
@@ -37,6 +38,10 @@ fn run() -> Result<(), String> {
             terminal::direct::write_to_controlling_terminal(&sequence)
                 .map_err(|error| error.to_string())
         }
-        Backend::WslClip => Err("the wsl-clip backend is not implemented yet".to_owned()),
+        Backend::WslClip => {
+            let input = read_input(&mut io::stdin().lock())
+                .map_err(|error| format!("cannot read standard input: {error}"))?;
+            wsl::copy(&input).map_err(|error| error.to_string())
+        }
     }
 }

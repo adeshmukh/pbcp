@@ -7,12 +7,13 @@ short, factual, and current. `AGENTS.md` defines the required update protocol.
 
 ## Current state
 
-**Phase:** M0 complete; M1 complete; M2 complete; M3 pending.
+**Phase:** M0 complete; M1 complete; M2 complete; M3 blocked.
 
-**Next action:** Implement the WSL `clip.exe` backend with explicit process and
-input errors, then add focused tests for bytes and process failures.
+**Next action:** Validate remote SSH-to-local clipboard copying from a real SSH
+session in a supported OSC 52 terminal.
 
-**Blockers:** Clipboard contents have not been manually inspected after a copy.
+**Blockers:** This WSL host has no SSH server or active remote SSH session, so
+the end-to-end SSH clipboard path cannot be manually validated here.
 
 ## Milestone status
 
@@ -21,7 +22,7 @@ input errors, then add focused tests for bytes and process failures.
 | M0 Project contract | Done | Agent guide, implementation plan, and tracker created |
 | M1 Tested core | Done | Zero-dependency crate, CLI parsing, stdin, Base64, and OSC 52 core |
 | M2 Terminal transports | Done | CLI wiring, direct output, `tmux` and `screen` passthrough, selection, and presence-only `--diagnose` |
-| M3 WSL and SSH vertical slice | Pending | WSL `clip.exe` backend is next; OSC 52 path is wired; end-to-end clipboard validation remains |
+| M3 WSL and SSH vertical slice | Blocked | WSL `clip.exe` path implemented and manually validated, including from tmux; real remote SSH-to-local clipboard validation still needs an SSH host and supported terminal |
 | M4 Product hardening | Pending | Required before first release |
 | M5 macOS | Pending | Requires a Mac or hosted macOS runner for final validation |
 | M6 Local graphical Linux | Pending | Wayland and X11 lifecycle work |
@@ -31,8 +32,8 @@ Use only these status values: `Pending`, `In progress`, `Blocked`, `Done`.
 
 ## Active task
 
-Implement the WSL `clip.exe` backend with explicit process and input errors,
-then add focused tests for bytes and process failures.
+Validate remote SSH-to-local clipboard copying from a real SSH session in a
+supported OSC 52 terminal.
 
 ## Decisions
 
@@ -60,6 +61,9 @@ then add focused tests for bytes and process failures.
 - Mux passthrough is byte-tested separately for tmux and GNU screen. When both
   environment signals are present, transport is rejected rather than guessing
   the nesting order.
+- The WSL `clip.exe` backend accepts UTF-8 text, converts it to UTF-16LE with no
+  BOM or added newline, and rejects invalid UTF-8 and NUL bytes rather than
+  silently corrupting text. Other backends' binary-input policy remains open.
 - GPT-6 Luna is preferred for focused implementation, GPT-6 Sol for correctness
   review and integration, and GPT-6 Astra only for unresolved difficult work.
 
@@ -69,8 +73,6 @@ then add focused tests for bytes and process failures.
 - Policy for NUL-containing or otherwise binary input.
 - Exact CLI spelling and exit codes beyond `--backend` and `--diagnose`.
 - Reliable automatic capability heuristics versus explicit OSC 52 selection.
-- Whether `screen` support fits the initial release after its transport is
-  investigated.
 
 Resolve these only when the relevant milestone needs them. Record the result in
 **Decisions** and in tests or user documentation as appropriate.
@@ -93,8 +95,15 @@ Validation:
   `--diagnose` smoke checks report signal presence and route without environment
   values. This WSL2 host has `clip.exe`, `tmux`, and `screen`; no clipboard
   contents were inspected.
-- No direct-terminal, tmux-session, WSL, or SSH end-to-end behavior has been
-  manually validated.
+- At M2 completion, no direct-terminal, tmux-session, WSL, or SSH copy behavior
+  had been manually validated.
+- M3 checkpoint: `cargo fmt --all -- --check`, `cargo test --all-targets` (42
+  unit tests and 1 CLI integration test passed), `cargo clippy --all-targets
+  -- -D warnings`, `cargo tree --edges normal`, and `git diff --check` all
+  passed. The real WSL `clip.exe` path preserved a Unicode test marker without
+  a trailing newline; the same path passed from a tmux pane. An SSH-signalled
+  pseudo-terminal emitted the expected OSC 52 bytes, but no real SSH transport
+  or local-terminal clipboard path was available for validation.
 
 Record commands and outcomes here, distinguishing:
 
@@ -160,6 +169,23 @@ Record commands and outcomes here, distinguishing:
 - M2 is marked complete. After its commit is pushed, M3 starts with WSL
   `clip.exe` process handling and tests. Clipboard inspection and end-to-end
   SSH/terminal checks remain.
+
+### 2026-11-11 — M3 WSL and SSH checkpoint
+
+- Implemented the WSL backend by sending UTF-16LE text to built-in `clip.exe`.
+  Invalid UTF-8 and embedded NUL are rejected; process startup, input, wait, and
+  nonzero-exit errors are surfaced.
+- Added encoding and process-failure unit tests plus a binary-level CLI test
+  using a stub `clip.exe`. The WSL host clipboard read-back confirmed Unicode
+  and no trailing newline; the same WSL copy path worked inside a tmux pane.
+- An SSH-signalled pseudo-terminal emitted the expected OSC 52 sequence. This
+  is simulated environment/PTY validation, not a remote SSH test. The host has
+  no sshd or active SSH session, so the real SSH-to-local clipboard check is
+  blocked.
+- Changed: `src/wsl.rs`, `src/lib.rs`, `src/main.rs`, `tests/wsl_cli.rs`, and
+  this tracker.
+- M3 remains blocked until a real remote SSH session can validate delivery to
+  the local terminal. No M4 work has started.
 
 ## New-session kickoff
 
