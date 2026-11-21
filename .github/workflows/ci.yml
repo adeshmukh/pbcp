@@ -32,7 +32,7 @@ jobs:
       matrix:
         runner: [ubuntu-24.04, ubuntu-24.04-arm]
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - name: Install Rust
@@ -64,7 +64,7 @@ jobs:
       version: ${{ steps.plan.outputs.version }}
       previous: ${{ steps.plan.outputs.previous }}
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
           persist-credentials: false
@@ -105,7 +105,7 @@ jobs:
       CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_LINKER: musl-gcc
       CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_LINKER: musl-gcc
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - name: Install build tools
@@ -136,32 +136,22 @@ jobs:
           archive="pbcp-$VERSION-$TARGET.tar.gz"
           tar -czf "dist/$archive" -C staging pbcp BUILD.txt
           (cd dist && sha256sum "$archive" > "$archive.sha256")
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: pbcp-${{ matrix.target }}-${{ github.sha }}
           path: dist/*
           if-no-files-found: error
           retention-days: 14
 
-  release:
-    name: Publish GitHub Release
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+  assemble:
+    name: Verify release bundle
     needs: [version, build]
     runs-on: ubuntu-24.04
     timeout-minutes: 10
-    permissions:
-      contents: write
     env:
-      GH_TOKEN: ${{ github.token }}
-      GH_REPO: ${{ github.repository }}
       VERSION: ${{ needs.version.outputs.version }}
-      PREVIOUS_TAG: ${{ needs.version.outputs.previous }}
-      RELEASE_TAG: v${{ needs.version.outputs.version }}
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-        with:
-          persist-credentials: false
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           pattern: pbcp-*
           path: dist
@@ -173,6 +163,45 @@ jobs:
           test -f "pbcp-$VERSION-aarch64-unknown-linux-musl.tar.gz"
           sha256sum --check ./*.sha256
           sha256sum ./*.tar.gz > SHA256SUMS
+          for target in x86_64-unknown-linux-musl aarch64-unknown-linux-musl; do
+            printf 'version=%s\ncommit=%s\ntarget=%s\n' \
+              "$VERSION" "$GITHUB_SHA" "$target" > expected-build.txt
+            tar -xOf "pbcp-$VERSION-$target.tar.gz" BUILD.txt | cmp - expected-build.txt
+          done
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-bundle-${{ github.sha }}
+          path: |
+            dist/*.tar.gz
+            dist/SHA256SUMS
+          if-no-files-found: error
+          retention-days: 14
+
+  release:
+    name: Publish GitHub Release
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [version, assemble]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      VERSION: ${{ needs.version.outputs.version }}
+      PREVIOUS_TAG: ${{ needs.version.outputs.previous }}
+      RELEASE_TAG: v${{ needs.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: release-bundle-${{ github.sha }}
+          path: dist
+      - name: Recheck publication assets
+        working-directory: dist
+        run: sha256sum --check SHA256SUMS
       - name: Publish once, or resume an interrupted draft
         working-directory: dist
         run: bash ../.github/scripts/publish.sh

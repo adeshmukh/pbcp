@@ -32,7 +32,8 @@ Use only these status values: `Pending`, `In progress`, `Blocked`, `Done`.
 ## Active task
 
 GitHub CI and release setup: In progress. Workflow and packaging are implemented;
-local checks passed, hosted checks and artifact inspection remain pending.
+local checks and the initial hosted matrix passed. Both artifacts were inspected;
+the updated Node 24 Actions and combined bundle check are pending hosted validation.
 The user explicitly selected this independent M4 work while configuration work
 proceeds separately. Only this worktree's tracker is changed; binary-input policy
 remains pending.
@@ -289,6 +290,13 @@ Record commands and outcomes here, distinguishing:
   unavailable; authenticated HTTPS fetch succeeded without changing that remote.
 - CI/release setup: In progress. M4 remains In progress. Next action: validate
   hosted PR CI and its downloadable binary artifacts.
+- Opened PR #1. Initial hosted run 44940458122 passed GNU/musl tests and builds on
+  both native Linux architectures; publishing was skipped as intended. Downloaded
+  both archives, verified SHA-256/provenance/static architectures, and ran the
+  x86-64 artifact's diagnostic path locally. ARM64 execution was hosted, not local.
+- The initial run reported Node 20 deprecation warnings. Updated to current pinned
+  Node 24 Actions and added read-only combined release-bundle verification on PRs;
+  these workflow changes still need hosted validation.
 
 ## New-session kickoff
 

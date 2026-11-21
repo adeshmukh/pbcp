@@ -13,6 +13,11 @@ These previews use the source Cargo version and carry their exact commit and
 target in `BUILD.txt`. No `gh` installation is needed to download published
 assets through GitHub's web UI or HTTPS.
 
+The combined `release-bundle-COMMIT` artifact contains both archives and the
+same `SHA256SUMS` file used for publication. CI downloads the per-target
+artifacts, verifies checksums and embedded commit/version/target metadata, then
+assembles this bundle on pull requests as well as main pushes.
+
 ## Automatic releases
 
 A push to `main` publishes a GitHub Release only after all checks and both static
