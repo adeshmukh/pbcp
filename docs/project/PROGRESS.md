@@ -9,11 +9,10 @@ short, factual, and current. `AGENTS.md` defines the required update protocol.
 
 **Phase:** M0 complete; M1 complete; M2 complete; M3 complete; M4 in progress.
 
-**Next action:** Validate PR #1's hosted CI after stabilizing the WSL nonzero-exit
-test fixture.
+**Next action:** Review PR #1 for merge to enable the first automatic GitHub
+Release on `main`.
 
-**Blockers:** None. The CI-exposed WSL test race is fixed locally; hosted
-validation remains pending.
+**Blockers:** None.
 
 ## Milestone status
 
@@ -32,12 +31,12 @@ Use only these status values: `Pending`, `In progress`, `Blocked`, `Done`.
 
 ## Active task
 
-GitHub CI and release setup: In progress on `ci/github-releases`, PR #1. Native Linux
+GitHub CI and release setup: Done on `ci/github-releases`, PR #1. Native Linux
 x86-64/ARM64 GNU and musl checks passed, and the combined release bundle was
 downloaded and verified. The main-only publisher is mock-tested but has not
 published a release; merging the PR enables it. M4 is not complete.
-The final documentation-only CI rerun exposed a nondeterministic existing test;
-its fixture now consumes stdin before exiting, pending hosted revalidation.
+CI exposed a nondeterministic existing test; its fixture now consumes stdin
+before exiting, and hosted run 44941190707 passed on both architectures.
 The user explicitly selected this independent M4 work while configuration work
 proceeds separately. Only this worktree's tracker is changed; binary-input policy
 and the `curl | sh` installer remain pending.
@@ -165,6 +164,9 @@ Validation:
   was skipped on the PR. The downloaded combined bundle's checksums matched.
   An earlier run's x86-64 binary also executed `--diagnose` on this host.
   No real clipboard functionality or main-push publication was newly validated.
+- After the test-fixture race fix, local formatting, all 68 Rust tests, Clippy,
+  and whitespace checks passed. Hosted run 44941190707 then passed the complete
+  native GNU/musl matrices and release-bundle verification on both architectures.
 
 Record commands and outcomes here, distinguishing:
 
@@ -321,6 +323,10 @@ Record commands and outcomes here, distinguishing:
   fixture in `src/wsl.rs` to consume stdin before exiting; no production behavior
   changed. All 68 local Rust tests, formatting, Clippy, and whitespace checks
   passed after this fix. Hosted revalidation is pending.
+- Hosted revalidation run 44941190707 passed all checks, both static builds,
+  and combined bundle verification; publishing remained skipped. CI/release
+  setup is Done, with no blockers. PR #1 remains unmerged and M4 remains
+  In progress. Next action: review PR #1 for merge to enable the first release.
 
 ## New-session kickoff
 
