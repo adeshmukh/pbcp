@@ -1,5 +1,6 @@
 pub fn wrap(sequence: &[u8]) -> Vec<u8> {
-    let mut wrapped = Vec::with_capacity(sequence.len() + 10);
+    let escapes = sequence.iter().filter(|&&byte| byte == b'\x1b').count();
+    let mut wrapped = Vec::with_capacity(sequence.len() + escapes + 10);
     wrapped.extend_from_slice(b"\x1bPtmux;\x1b");
     for &byte in sequence {
         wrapped.push(byte);

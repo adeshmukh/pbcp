@@ -59,7 +59,7 @@ fn encode_text(input: &[u8]) -> io::Result<Vec<u8>> {
         ));
     }
 
-    let mut encoded = Vec::new();
+    let mut encoded = Vec::with_capacity(text.encode_utf16().count() * 2);
     for code_unit in text.encode_utf16() {
         encoded.extend_from_slice(&code_unit.to_le_bytes());
     }
@@ -81,7 +81,12 @@ mod tests {
     impl TempFile {
         fn new() -> Self {
             let id = NEXT_TEMP_ID.fetch_add(1, Ordering::Relaxed);
-            Self(std::env::temp_dir().join(format!("pbcp-clip-{}-{id}", std::process::id())))
+            Self(
+                std::env::current_dir()
+                    .unwrap()
+                    .join("target")
+                    .join(format!("pbcp-clip-{}-{id}", std::process::id())),
+            )
         }
     }
 

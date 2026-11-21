@@ -2,7 +2,7 @@ use crate::base64;
 
 pub fn generate(input: &[u8]) -> Vec<u8> {
     let encoded = base64::encode(input);
-    let mut sequence = Vec::with_capacity(7 + encoded.len());
+    let mut sequence = Vec::with_capacity(8 + encoded.len());
     sequence.extend_from_slice(b"\x1b]52;c;");
     sequence.extend_from_slice(encoded.as_bytes());
     sequence.push(b'\x07');

@@ -2,6 +2,25 @@ use crate::detect::Environment;
 use crate::selection::{select_backend, Backend};
 use crate::terminal::{select_transport, TerminalTransport};
 
+pub fn report_with_config(
+    environment: &Environment,
+    resolution: &crate::config::Resolution,
+) -> String {
+    let settings = &resolution.settings;
+    let mut output = format!(
+        "Setting backend: {} (source: {})\nSetting max_bytes: {} (source: {})\n",
+        settings.backend.value.name(),
+        settings.backend.source,
+        settings.max_bytes.value,
+        settings.max_bytes.source,
+    );
+    for source in &resolution.sources {
+        output.push_str(&format!("Configuration: {source}\n"));
+    }
+    output.push_str(&report(environment, settings.backend.value.requested()));
+    output
+}
+
 pub fn report(environment: &Environment, requested_backend: Option<&str>) -> String {
     let mut output = String::new();
     push_signal(&mut output, "SSH session", environment.is_ssh_session());

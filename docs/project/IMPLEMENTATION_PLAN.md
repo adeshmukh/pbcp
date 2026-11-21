@@ -174,7 +174,9 @@ rather than read opportunistically throughout the program.
 
 ## Safety and correctness
 
-- Bound allocations and define a maximum clipboard payload before release.
+- Bound allocations and enforce the default 64 KiB raw-input limit before
+  release. Configuration sources, finite overrides, and warning/error behavior
+  are specified in [CONFIGURATION.md](CONFIGURATION.md).
 - Decide and document whether NUL-containing or arbitrary binary input is
   rejected. The initial UX is text-oriented, but validation must not corrupt
   input silently.
@@ -233,6 +235,8 @@ on the WSL host provide edit isolation, not additional operating systems.
 
 ### M4: Product hardening
 
+- Configuration discovery, per-key precedence, CLI overrides, and diagnostics
+  according to [CONFIGURATION.md](CONFIGURATION.md).
 - Payload limits and binary-input policy.
 - Actionable errors and stable exit behavior.
 - User-facing README and installation instructions.

@@ -1,16 +1,16 @@
 # pbcp project progress
 
-Last updated: 2026-11-11
+Last updated: 2026-11-21
 
 This file is the canonical handoff between implementation sessions. Keep it
 short, factual, and current. `AGENTS.md` defines the required update protocol.
 
 ## Current state
 
-**Phase:** M0 complete; M1 complete; M2 complete; M3 complete.
+**Phase:** M0 complete; M1 complete; M2 complete; M3 complete; M4 in progress.
 
-**Next action:** Set the default clipboard payload limit and decide whether
-users may override it; record the policy and add boundary tests.
+**Next action:** Decide and test the OSC 52 policy for NUL-containing or otherwise
+binary input.
 
 **Blockers:** None.
 
@@ -22,7 +22,7 @@ users may override it; record the policy and add boundary tests.
 | M1 Tested core | Done | Zero-dependency crate, CLI parsing, stdin, Base64, and OSC 52 core |
 | M2 Terminal transports | Done | CLI wiring, direct output, `tmux` and `screen` passthrough, selection, and presence-only `--diagnose` |
 | M3 WSL and SSH vertical slice | Done | WSL `clip.exe` validated directly and from tmux; user verified remote `hop` SSH OSC 52 delivery into the Windows clipboard |
-| M4 Product hardening | Pending | Required before first release |
+| M4 Product hardening | In progress | Configuration and payload limits implemented; binary policy, README/install, and release checks remain |
 | M5 macOS | Pending | Requires a Mac or hosted macOS runner for final validation |
 | M6 Local graphical Linux | Pending | Wayland and X11 lifecycle work |
 | M7 Native Windows/distribution | Pending | Lowest initial priority |
@@ -31,8 +31,12 @@ Use only these status values: `Pending`, `In progress`, `Blocked`, `Done`.
 
 ## Active task
 
-Set the default clipboard payload limit and decide whether users may override
-it; record the policy and add boundary tests.
+Configuration and payload policy specification: Done.
+Implement the pure configuration parser and per-key merge logic with tests:
+Done.
+File discovery/loading, CLI integration, diagnostics/provenance, and bounded
+input enforcement: Done. All required checks passed (58 unit tests and 10 CLI
+integration tests). This completes the configuration specification, not M4.
 
 ## Decisions
 
@@ -65,12 +69,29 @@ it; record the policy and add boundary tests.
   silently corrupting text. Other backends' binary-input policy remains open.
 - GPT-6 Luna is preferred for focused implementation, GPT-6 Sol for correctness
   review and integration, and GPT-6 Astra only for unresolved difficult work.
+- Configuration uses dependency-free `key=value` files, layered built-in,
+  system, user, then CLI. `--config` replaces automatic discovery and
+  `--no-config` disables file loading; details are in `CONFIGURATION.md`.
+- Unknown file keys warn and are ignored; duplicate keys within a file warn
+  and use the later value. Invalid recognized values always fail, including
+  values shadowed by later sources.
+- The default payload limit is 65,536 raw-input bytes across backends.
+  Overrides must be positive and finite; oversize input fails without copying
+  or truncation. Incremental stdin reads and checked expansion arithmetic enforce
+  this policy; large configured limits do not eagerly allocate input storage.
+- The representability cap is `floor((isize::MAX - 26) / 8) * 3` bytes on the
+  compiled architecture, conservatively covering UTF-16 and OSC 52/mux expansion.
+  Available memory and receiving-terminal limits remain separate constraints.
+- Automatic Unix discovery requires an absolute non-empty XDG root, or an
+  absolute HOME for its fallback. Unusable HOME skips user discovery with a
+  warning; explicit-file and disabled modes bypass discovery validation.
+- Unix configuration paths retain native bytes; diagnostics escape identifiers
+  and never echo raw file values or lines.
 
 ## Open decisions
 
-- Maximum clipboard payload and override behavior.
 - Policy for NUL-containing or otherwise binary input.
-- Exact CLI spelling and exit codes beyond `--backend` and `--diagnose`.
+- Exit codes and CLI options beyond those specified in `CONFIGURATION.md`.
 - Reliable automatic capability heuristics versus explicit OSC 52 selection.
 
 Resolve these only when the relevant milestone needs them. Record the result in
@@ -107,6 +128,17 @@ Validation:
 - M3 manual validation completed by the user: copied the test binary to `hop`,
   ran it over `ssh -tt` from the actual WSL terminal, and confirmed
   `Get-Clipboard -Raw` returned `pbcp SSH validation: snowman ☃`.
+- M4 configuration completion: `cargo fmt --all -- --check`,
+  `cargo test --all-targets` (58 unit tests and 10 CLI integration tests passed),
+  `cargo clippy --all-targets -- -D warnings`, `cargo tree --edges normal`
+  (only local `pbcp`, no third-party dependencies), and `git diff --check`
+  passed. Formatting was applied after the first final check found formatting
+  differences. Pure discovery tests inject file I/O; hermetic CLI tests use
+  repository-local scratch directories and stub `clip.exe`, with live stdin
+  pipes to verify diagnose/config failures do not read input. Permission-denied
+  loading is simulated; directory/missing/invalid-UTF-8 failures are also tested.
+  No real system/user configuration, clipboard, terminal, or new platform
+  behavior was inspected or manually validated.
 
 Record commands and outcomes here, distinguishing:
 
@@ -194,6 +226,38 @@ Record commands and outcomes here, distinguishing:
   removed from `hop`.
 - No M4 implementation has started. The next task is to decide and test the
   maximum input payload and override policy.
+
+### 2026-11-21 — M4 configuration specification
+
+- Documented the default payload limit, file format and discovery, per-key
+  precedence, explicit CLI controls, diagnostics, and warning/error semantics.
+- Accepted unknown-key and duplicate-key warnings for compatibility and
+  concatenation; invalid recognized values fail even when later overridden.
+- Changed: `docs/project/CONFIGURATION.md`,
+  `docs/project/IMPLEMENTATION_PLAN.md`, and this tracker.
+- Documentation-only work; `git diff --check` passed. No Rust tests or platform
+  checks run. Implementation and boundary tests remain pending. No new blockers.
+- Next action: implement the pure configuration parser and per-key merge logic
+  with focused tests.
+
+### 2026-11-21 — Complete configuration implementation
+
+- Implemented the pure parser/merge first and passed its six focused tests,
+  then completed discovery/loading, per-key CLI overrides, provenance and source
+  diagnostics, and shared bounded stdin enforcement without dependencies.
+- Added invalid-shadowed-value, warning, layering, path, file-I/O, CLI-order,
+  default/override boundary, no-input/no-copy, and WSL restriction checks.
+  Preserved selection policy and exact protocol bytes; corrected OSC 52 and
+  tmux capacity sizing and sized UTF-16 storage from actual input to avoid
+  allocation-growth arithmetic exceeding the validated range.
+- Changed: `src/{cli,config,diagnose,input,lib,main,osc52,wsl}.rs`,
+  `src/terminal/tmux.rs`, `tests/wsl_cli.rs`, and
+  `docs/project/{CONFIGURATION,IMPLEMENTATION_PLAN,PROGRESS}.md`.
+- Required formatting, all 68 tests, Clippy, dependency-tree, and whitespace
+  checks passed. Test scratch paths were cleaned; no real clipboard operations
+  or new platform validation occurred.
+- Configuration specification: Done. M4: In progress. No new blockers.
+  Next action: decide and test the OSC 52 NUL/binary-input policy.
 
 ## New-session kickoff
 

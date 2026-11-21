@@ -1,5 +1,6 @@
 pub mod base64;
 pub mod cli;
+pub mod config;
 pub mod detect;
 pub mod diagnose;
 pub mod input;
