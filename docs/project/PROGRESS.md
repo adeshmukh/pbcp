@@ -9,8 +9,8 @@ short, factual, and current. `AGENTS.md` defines the required update protocol.
 
 **Phase:** M0 complete; M1 complete; M2 complete; M3 complete; M4 in progress.
 
-**Next action:** Validate the `ci/github-releases` pull request's hosted Linux
-x86-64 and ARM64 CI runs and downloadable binary artifacts.
+**Next action:** Review PR #1 for merge to enable the first automatic GitHub
+Release on `main`.
 
 **Blockers:** None.
 
@@ -22,7 +22,7 @@ x86-64 and ARM64 CI runs and downloadable binary artifacts.
 | M1 Tested core | Done | Zero-dependency crate, CLI parsing, stdin, Base64, and OSC 52 core |
 | M2 Terminal transports | Done | CLI wiring, direct output, `tmux` and `screen` passthrough, selection, and presence-only `--diagnose` |
 | M3 WSL and SSH vertical slice | Done | WSL `clip.exe` validated directly and from tmux; user verified remote `hop` SSH OSC 52 delivery into the Windows clipboard |
-| M4 Product hardening | In progress | Configuration and payload limits implemented; binary policy, README/install, and release checks remain |
+| M4 Product hardening | In progress | Configuration, payload limits, and CI/release setup implemented; binary policy and user-facing README/installer remain |
 | M5 macOS | Pending | Requires a Mac or hosted macOS runner for final validation |
 | M6 Local graphical Linux | Pending | Wayland and X11 lifecycle work |
 | M7 Native Windows/distribution | Pending | Lowest initial priority |
@@ -31,12 +31,13 @@ Use only these status values: `Pending`, `In progress`, `Blocked`, `Done`.
 
 ## Active task
 
-GitHub CI and release setup: In progress. Workflow and packaging are implemented;
-local checks and the initial hosted matrix passed. Both artifacts were inspected;
-the updated Node 24 Actions and combined bundle check are pending hosted validation.
+GitHub CI and release setup: Done on `ci/github-releases`, PR #1. Native Linux
+x86-64/ARM64 GNU and musl checks passed, and the combined release bundle was
+downloaded and verified. The main-only publisher is mock-tested but has not
+published a release; merging the PR enables it. M4 is not complete.
 The user explicitly selected this independent M4 work while configuration work
 proceeds separately. Only this worktree's tracker is changed; binary-input policy
-remains pending.
+and the `curl | sh` installer remain pending.
 
 Configuration and payload policy specification: Done.
 Implement the pure configuration parser and per-key merge logic with tests:
@@ -151,6 +152,16 @@ Validation:
   loading is simulated; directory/missing/invalid-UTF-8 failures are also tested.
   No real system/user configuration, clipboard, terminal, or new platform
   behavior was inspected or manually validated.
+
+- CI branch: local formatting, all 68 Rust tests, Clippy, dependency-tree,
+  nine release-planning/publication tests, Bash syntax, actionlint, and whitespace
+  checks passed. The actual Git-tag planner returned `version=0.0.1`.
+- Hosted run 44940735386 passed all GNU/musl checks on native Linux x86-64 and
+  ARM64, static-link/diagnostic checks, artifact upload/download, and combined
+  checksum/provenance verification with current Node 24 Actions. Publishing
+  was skipped on the PR. The downloaded combined bundle's checksums matched.
+  An earlier run's x86-64 binary also executed `--diagnose` on this host.
+  No real clipboard functionality or main-push publication was newly validated.
 
 Record commands and outcomes here, distinguishing:
 
@@ -296,7 +307,11 @@ Record commands and outcomes here, distinguishing:
   x86-64 artifact's diagnostic path locally. ARM64 execution was hosted, not local.
 - The initial run reported Node 20 deprecation warnings. Updated to current pinned
   Node 24 Actions and added read-only combined release-bundle verification on PRs;
-  these workflow changes still need hosted validation.
+  hosted run 44940735386 passed without those warnings. Downloaded and verified
+  its combined bundle (both checksums and embedded commit/version/target).
+- CI/release setup: Done. PR #1 is unmerged; no releases were created. M4 remains
+  In progress. Main-only publishing was tested using mock `gh` calls, not an
+  actual release. Next action: review PR #1 for merge and first-release rollout.
 
 ## New-session kickoff
 
