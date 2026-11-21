@@ -9,10 +9,11 @@ short, factual, and current. `AGENTS.md` defines the required update protocol.
 
 **Phase:** M0 complete; M1 complete; M2 complete; M3 complete; M4 in progress.
 
-**Next action:** Review PR #1 for merge to enable the first automatic GitHub
-Release on `main`.
+**Next action:** Validate PR #1's hosted CI after stabilizing the WSL nonzero-exit
+test fixture.
 
-**Blockers:** None.
+**Blockers:** None. The CI-exposed WSL test race is fixed locally; hosted
+validation remains pending.
 
 ## Milestone status
 
@@ -31,10 +32,12 @@ Use only these status values: `Pending`, `In progress`, `Blocked`, `Done`.
 
 ## Active task
 
-GitHub CI and release setup: Done on `ci/github-releases`, PR #1. Native Linux
+GitHub CI and release setup: In progress on `ci/github-releases`, PR #1. Native Linux
 x86-64/ARM64 GNU and musl checks passed, and the combined release bundle was
 downloaded and verified. The main-only publisher is mock-tested but has not
 published a release; merging the PR enables it. M4 is not complete.
+The final documentation-only CI rerun exposed a nondeterministic existing test;
+its fixture now consumes stdin before exiting, pending hosted revalidation.
 The user explicitly selected this independent M4 work while configuration work
 proceeds separately. Only this worktree's tracker is changed; binary-input policy
 and the `curl | sh` installer remain pending.
@@ -312,6 +315,12 @@ Record commands and outcomes here, distinguishing:
 - CI/release setup: Done. PR #1 is unmerged; no releases were created. M4 remains
   In progress. Main-only publishing was tested using mock `gh` calls, not an
   actual release. Next action: review PR #1 for merge and first-release rollout.
+- Reopened CI validation after run 44941037841 failed on both architectures in
+  the existing nonzero-exit WSL test: its child could exit before stdin was written,
+  yielding a write error instead of an exit-status error. Changed only the test
+  fixture in `src/wsl.rs` to consume stdin before exiting; no production behavior
+  changed. All 68 local Rust tests, formatting, Clippy, and whitespace checks
+  passed after this fix. Hosted revalidation is pending.
 
 ## New-session kickoff
 
