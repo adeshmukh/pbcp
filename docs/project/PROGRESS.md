@@ -9,8 +9,8 @@ short, factual, and current. `AGENTS.md` defines the required update protocol.
 
 **Phase:** M0 complete; M1 complete; M2 complete; M3 complete; M4 in progress.
 
-**Next action:** Decide and test the OSC 52 policy for NUL-containing or otherwise
-binary input.
+**Next action:** Validate the `ci/github-releases` pull request's hosted Linux
+x86-64 and ARM64 CI runs and downloadable binary artifacts.
 
 **Blockers:** None.
 
@@ -31,6 +31,12 @@ Use only these status values: `Pending`, `In progress`, `Blocked`, `Done`.
 
 ## Active task
 
+GitHub CI and release setup: In progress. Workflow and packaging are implemented;
+local checks passed, hosted checks and artifact inspection remain pending.
+The user explicitly selected this independent M4 work while configuration work
+proceeds separately. Only this worktree's tracker is changed; binary-input policy
+remains pending.
+
 Configuration and payload policy specification: Done.
 Implement the pure configuration parser and per-key merge logic with tests:
 Done.
@@ -49,6 +55,11 @@ integration tests). This completes the configuration specification, not M4.
 - `screen` should be supported when it remains a small transport addition.
 - Native macOS support is planned; final validation requires macOS.
 - Native Windows-shell support is lower priority than WSL.
+- CI uses native Linux x86-64/ARM64 runners and static musl binary artifacts.
+  Successful processed main pushes publish GitHub Releases, starting at 0.0.1
+  and incrementing the patch. PR/manual runs only upload preview artifacts.
+  Serialized runs may coalesce rapid pending pushes. Release notes are generated
+  with an explicit platform/validation template; see `docs/releases/README.md`.
 - Initial implementation should remain in one worktree until the backend and
   transport contracts stabilize.
 - The core reads and encodes arbitrary input bytes without imposing the still
@@ -258,6 +269,26 @@ Record commands and outcomes here, distinguishing:
   or new platform validation occurred.
 - Configuration specification: Done. M4: In progress. No new blockers.
   Next action: decide and test the OSC 52 NUL/binary-input policy.
+
+### 2026-11-21 — Isolated CI and release implementation
+
+- Created `.worktrees/github-ci` on `ci/github-releases`, based on the completed
+  configuration commit. The primary worktree and application code are untouched.
+- Added native Linux x86-64/ARM64 checks, musl test/build/package jobs, read-only
+  PR previews, and a main-only GitHub Release publisher with patch allocation,
+  generated notes, SHA-256 checksums, and draft/retry safeguards.
+- Changed: `.github/workflows/ci.yml`, `.github/scripts/{release.py,
+  test_release.py,publish.sh,test_publish.py}`, `Cargo.toml`, `Cargo.lock`,
+  `docs/releases/{README,RELEASE_NOTES}.md`, and this tracker.
+- Local Rust formatting, all 68 existing tests, Clippy, dependency-tree, nine
+  version/stamping/publication tests, Bash syntax, actionlint, and whitespace
+  checks passed. GitHub's first-release notes API succeeded without creating a
+  release. Hosted CI/artifact validation remains pending. No release or
+  additional real clipboard validation has occurred.
+- GitHub authentication and Actions access verified. The SSH Git remote was
+  unavailable; authenticated HTTPS fetch succeeded without changing that remote.
+- CI/release setup: In progress. M4 remains In progress. Next action: validate
+  hosted PR CI and its downloadable binary artifacts.
 
 ## New-session kickoff
 
