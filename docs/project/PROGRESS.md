@@ -9,8 +9,8 @@ short, factual, and current. `AGENTS.md` defines the required update protocol.
 
 **Phase:** M0 complete; M1 complete; M2 complete; M3 complete; M4 in progress.
 
-**Next action:** Review PR #1 for merge to enable the first automatic GitHub
-Release on `main`.
+**Next action:** Decide and test the OSC 52 policy for NUL-containing or otherwise
+binary input.
 
 **Blockers:** None.
 
@@ -31,15 +31,17 @@ Use only these status values: `Pending`, `In progress`, `Blocked`, `Done`.
 
 ## Active task
 
-GitHub CI and release setup: Done on `ci/github-releases`, PR #1. Native Linux
+Repo-local publish workflow: Implementation and GitHub configuration Done.
+Local verification and skill discovery passed; hosted auto-merge/publication
+validation will run through the skill's own rollout PR. M4 remains In progress.
+
+GitHub CI and release setup: Done; PR #1 merged. Native Linux
 x86-64/ARM64 GNU and musl checks passed, and the combined release bundle was
-downloaded and verified. The main-only publisher is mock-tested but has not
-published a release; merging the PR enables it. M4 is not complete.
+downloaded and verified. Main run 44988072502 passed and published `v0.0.1`
+with both binary archives and `SHA256SUMS`. M4 is not complete.
 CI exposed a nondeterministic existing test; its fixture now consumes stdin
 before exiting, and hosted run 44941190707 passed on both architectures.
-The user explicitly selected this independent M4 work while configuration work
-proceeds separately. Only this worktree's tracker is changed; binary-input policy
-and the `curl | sh` installer remain pending.
+Binary-input policy and the `curl | sh` installer remain pending.
 
 Configuration and payload policy specification: Done.
 Implement the pure configuration parser and per-key merge logic with tests:
@@ -59,6 +61,11 @@ integration tests). This completes the configuration specification, not M4.
 - `screen` should be supported when it remains a small transport addition.
 - Native macOS support is planned; final validation requires macOS.
 - Native Windows-shell support is lower priority than WSL.
+- Publishing is explicitly user-invoked through the repo-local `publish` skill.
+  It verifies locally, creates a pithy PR, and requests CI-gated auto-merge.
+  Main requires all six pre-publication checks from GitHub Actions, an up-to-date
+  branch, and administrator enforcement; no review approvals are required.
+  The settings payload is `.github/skills/publish/main-protection.json`.
 - CI uses native Linux x86-64/ARM64 runners and static musl binary artifacts.
   Successful processed main pushes publish GitHub Releases, starting at 0.0.1
   and incrementing the patch. PR/manual runs only upload preview artifacts.
@@ -327,6 +334,26 @@ Record commands and outcomes here, distinguishing:
   and combined bundle verification; publishing remained skipped. CI/release
   setup is Done, with no blockers. PR #1 remains unmerged and M4 remains
   In progress. Next action: review PR #1 for merge to enable the first release.
+
+### 2026-11-21 — CI-gated publish skill
+
+- Merged PR #1; main run 44988072502 passed and published `v0.0.1` with both
+  static Linux archives and `SHA256SUMS`. Release publication is now validated,
+  not just mocked; no additional clipboard delivery was tested.
+- Added the repo-local `publish` skill and an initial main-protection payload.
+  It preserves worktree ownership/scoped changes, runs local tests/lint/build,
+  writes concise PRs, enables head-pinned auto-merge, and verifies the release.
+- Enabled repository auto-merge and main protection after verifying no existing
+  protection/rulesets. Read-back confirmed strict checks, all six GitHub Actions
+  identities, admin enforcement, no review approvals, and no force pushes/deletions.
+- Changed: `.github/skills/publish/{SKILL.md,main-protection.json}`,
+  `docs/releases/README.md`, and this tracker. Production code is unchanged.
+- Local formatting, all 68 Rust tests, Clippy, dependency checks, nine release
+  tests, Bash syntax, release build, JSON parsing, whitespace checks, and Copilot
+  skill discovery passed. Hosted auto-merge and release rollout remain unclaimed
+  until observed; the rollout PR records those remote results.
+- Implementation/configuration: Done. M4: In progress. No blockers. Next action:
+  decide and test the OSC 52 NUL/binary-input policy.
 
 ## New-session kickoff
 

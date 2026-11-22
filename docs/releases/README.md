@@ -73,6 +73,14 @@ distribution is separate work and is not supplied by this CI setup.
 
 ## Workflow permissions and recovery
 
+The repo-local `publish` skill in `.github/skills/publish/SKILL.md` runs local
+verification and a release build, opens a concise PR, and enables CI-gated
+auto-merge. Main protection requires all six pre-publication GitHub Actions jobs,
+up-to-date branches, and administrator enforcement, but no review approvals.
+The initial settings payload is `.github/skills/publish/main-protection.json`.
+Do not disable gates to force a merge; update live protection alongside any
+CI job-name changes. Repository settings live on GitHub, not in the Git checkout.
+
 Checks and builds have read-only repository access. Only the main-push publishing
 job receives `contents: write`; pull requests never run that job. Actions are
 pinned to immutable commits. No extra repository secret is required.
