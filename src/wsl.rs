@@ -169,7 +169,7 @@ mod tests {
     #[test]
     fn reports_nonzero_process_exit() {
         let mut command = Command::new("sh");
-        command.arg("-c").arg("exit 7");
+        command.arg("-c").arg("cat > /dev/null; exit 7");
 
         let error = copy_with_command(&mut command, b"text").unwrap_err();
         assert!(error

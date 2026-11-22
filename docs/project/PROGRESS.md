@@ -9,8 +9,8 @@ short, factual, and current. `AGENTS.md` defines the required update protocol.
 
 **Phase:** M0 complete; M1 complete; M2 complete; M3 complete; M4 in progress.
 
-**Next action:** Decide and test the OSC 52 policy for NUL-containing or otherwise
-binary input.
+**Next action:** Review PR #1 for merge to enable the first automatic GitHub
+Release on `main`.
 
 **Blockers:** None.
 
@@ -22,7 +22,7 @@ binary input.
 | M1 Tested core | Done | Zero-dependency crate, CLI parsing, stdin, Base64, and OSC 52 core |
 | M2 Terminal transports | Done | CLI wiring, direct output, `tmux` and `screen` passthrough, selection, and presence-only `--diagnose` |
 | M3 WSL and SSH vertical slice | Done | WSL `clip.exe` validated directly and from tmux; user verified remote `hop` SSH OSC 52 delivery into the Windows clipboard |
-| M4 Product hardening | In progress | Configuration and payload limits implemented; binary policy, README/install, and release checks remain |
+| M4 Product hardening | In progress | Configuration, payload limits, and CI/release setup implemented; binary policy and user-facing README/installer remain |
 | M5 macOS | Pending | Requires a Mac or hosted macOS runner for final validation |
 | M6 Local graphical Linux | Pending | Wayland and X11 lifecycle work |
 | M7 Native Windows/distribution | Pending | Lowest initial priority |
@@ -30,6 +30,16 @@ binary input.
 Use only these status values: `Pending`, `In progress`, `Blocked`, `Done`.
 
 ## Active task
+
+GitHub CI and release setup: Done on `ci/github-releases`, PR #1. Native Linux
+x86-64/ARM64 GNU and musl checks passed, and the combined release bundle was
+downloaded and verified. The main-only publisher is mock-tested but has not
+published a release; merging the PR enables it. M4 is not complete.
+CI exposed a nondeterministic existing test; its fixture now consumes stdin
+before exiting, and hosted run 44941190707 passed on both architectures.
+The user explicitly selected this independent M4 work while configuration work
+proceeds separately. Only this worktree's tracker is changed; binary-input policy
+and the `curl | sh` installer remain pending.
 
 Configuration and payload policy specification: Done.
 Implement the pure configuration parser and per-key merge logic with tests:
@@ -49,6 +59,11 @@ integration tests). This completes the configuration specification, not M4.
 - `screen` should be supported when it remains a small transport addition.
 - Native macOS support is planned; final validation requires macOS.
 - Native Windows-shell support is lower priority than WSL.
+- CI uses native Linux x86-64/ARM64 runners and static musl binary artifacts.
+  Successful processed main pushes publish GitHub Releases, starting at 0.0.1
+  and incrementing the patch. PR/manual runs only upload preview artifacts.
+  Serialized runs may coalesce rapid pending pushes. Release notes are generated
+  with an explicit platform/validation template; see `docs/releases/README.md`.
 - Initial implementation should remain in one worktree until the backend and
   transport contracts stabilize.
 - The core reads and encodes arbitrary input bytes without imposing the still
@@ -139,6 +154,19 @@ Validation:
   loading is simulated; directory/missing/invalid-UTF-8 failures are also tested.
   No real system/user configuration, clipboard, terminal, or new platform
   behavior was inspected or manually validated.
+
+- CI branch: local formatting, all 68 Rust tests, Clippy, dependency-tree,
+  nine release-planning/publication tests, Bash syntax, actionlint, and whitespace
+  checks passed. The actual Git-tag planner returned `version=0.0.1`.
+- Hosted run 44940735386 passed all GNU/musl checks on native Linux x86-64 and
+  ARM64, static-link/diagnostic checks, artifact upload/download, and combined
+  checksum/provenance verification with current Node 24 Actions. Publishing
+  was skipped on the PR. The downloaded combined bundle's checksums matched.
+  An earlier run's x86-64 binary also executed `--diagnose` on this host.
+  No real clipboard functionality or main-push publication was newly validated.
+- After the test-fixture race fix, local formatting, all 68 Rust tests, Clippy,
+  and whitespace checks passed. Hosted run 44941190707 then passed the complete
+  native GNU/musl matrices and release-bundle verification on both architectures.
 
 Record commands and outcomes here, distinguishing:
 
@@ -258,6 +286,47 @@ Record commands and outcomes here, distinguishing:
   or new platform validation occurred.
 - Configuration specification: Done. M4: In progress. No new blockers.
   Next action: decide and test the OSC 52 NUL/binary-input policy.
+
+### 2026-11-21 — Isolated CI and release implementation
+
+- Created `.worktrees/github-ci` on `ci/github-releases`, based on the completed
+  configuration commit. The primary worktree and application code are untouched.
+- Added native Linux x86-64/ARM64 checks, musl test/build/package jobs, read-only
+  PR previews, and a main-only GitHub Release publisher with patch allocation,
+  generated notes, SHA-256 checksums, and draft/retry safeguards.
+- Changed: `.github/workflows/ci.yml`, `.github/scripts/{release.py,
+  test_release.py,publish.sh,test_publish.py}`, `Cargo.toml`, `Cargo.lock`,
+  `docs/releases/{README,RELEASE_NOTES}.md`, and this tracker.
+- Local Rust formatting, all 68 existing tests, Clippy, dependency-tree, nine
+  version/stamping/publication tests, Bash syntax, actionlint, and whitespace
+  checks passed. GitHub's first-release notes API succeeded without creating a
+  release. Hosted CI/artifact validation remains pending. No release or
+  additional real clipboard validation has occurred.
+- GitHub authentication and Actions access verified. The SSH Git remote was
+  unavailable; authenticated HTTPS fetch succeeded without changing that remote.
+- CI/release setup: In progress. M4 remains In progress. Next action: validate
+  hosted PR CI and its downloadable binary artifacts.
+- Opened PR #1. Initial hosted run 44940458122 passed GNU/musl tests and builds on
+  both native Linux architectures; publishing was skipped as intended. Downloaded
+  both archives, verified SHA-256/provenance/static architectures, and ran the
+  x86-64 artifact's diagnostic path locally. ARM64 execution was hosted, not local.
+- The initial run reported Node 20 deprecation warnings. Updated to current pinned
+  Node 24 Actions and added read-only combined release-bundle verification on PRs;
+  hosted run 44940735386 passed without those warnings. Downloaded and verified
+  its combined bundle (both checksums and embedded commit/version/target).
+- CI/release setup: Done. PR #1 is unmerged; no releases were created. M4 remains
+  In progress. Main-only publishing was tested using mock `gh` calls, not an
+  actual release. Next action: review PR #1 for merge and first-release rollout.
+- Reopened CI validation after run 44941037841 failed on both architectures in
+  the existing nonzero-exit WSL test: its child could exit before stdin was written,
+  yielding a write error instead of an exit-status error. Changed only the test
+  fixture in `src/wsl.rs` to consume stdin before exiting; no production behavior
+  changed. All 68 local Rust tests, formatting, Clippy, and whitespace checks
+  passed after this fix. Hosted revalidation is pending.
+- Hosted revalidation run 44941190707 passed all checks, both static builds,
+  and combined bundle verification; publishing remained skipped. CI/release
+  setup is Done, with no blockers. PR #1 remains unmerged and M4 remains
+  In progress. Next action: review PR #1 for merge to enable the first release.
 
 ## New-session kickoff
 

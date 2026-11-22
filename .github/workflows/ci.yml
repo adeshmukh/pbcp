@@ -1,0 +1,207 @@
+name: CI and releases
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Serialize main builds before allocating versions. GitHub may coalesce pending
+# pushes; generated notes cover changes since the preceding release.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  check:
+    name: Check (${{ matrix.runner }})
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [ubuntu-24.04, ubuntu-24.04-arm]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install Rust
+        run: rustup toolchain install stable --profile minimal --component rustfmt --component clippy
+      - name: Formatting, tests, and lint
+        run: |
+          cargo +stable fmt --all -- --check
+          cargo +stable test --locked --all-targets
+          cargo +stable clippy --locked --all-targets -- -D warnings
+          python3 -m unittest discover -s .github/scripts -p 'test_*.py'
+      - name: Check dependency-free contract
+        run: |
+          cargo +stable tree --locked --edges normal
+          cargo +stable metadata --locked --format-version 1 > metadata.json
+          python3 - <<'PY'
+          import json
+          with open("metadata.json") as source:
+              metadata = json.load(source)
+          assert len(metadata["packages"]) == 1, "unexpected third-party package"
+          assert not metadata["packages"][0]["dependencies"], "unexpected Cargo dependency"
+          PY
+
+  version:
+    name: Plan artifact version
+    needs: check
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      version: ${{ steps.plan.outputs.version }}
+      previous: ${{ steps.plan.outputs.previous }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - id: plan
+        name: Select next patch for main, source version for previews
+        env:
+          PUBLISH: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+        run: |
+          if [[ "$PUBLISH" == true ]]; then
+            python3 .github/scripts/release.py plan
+          else
+            python3 - <<'PY'
+          import os
+          import tomllib
+          with open("Cargo.toml", "rb") as source:
+              version = tomllib.load(source)["package"]["version"]
+          with open(os.environ["GITHUB_OUTPUT"], "a") as output:
+              output.write(f"version={version}\nprevious=\n")
+          PY
+          fi
+
+  build:
+    name: Build (${{ matrix.target }})
+    needs: version
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            target: x86_64-unknown-linux-musl
+          - runner: ubuntu-24.04-arm
+            target: aarch64-unknown-linux-musl
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+      TARGET: ${{ matrix.target }}
+      CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_LINKER: musl-gcc
+      CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_LINKER: musl-gcc
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y musl-tools
+          rustup toolchain install stable --profile minimal --target "$TARGET"
+      - name: Stamp disposable checkout
+        run: |
+          python3 .github/scripts/release.py stamp --version "$VERSION"
+          cargo +stable generate-lockfile --offline
+      - name: Test and build static binary
+        run: |
+          cargo +stable test --locked --release --all-targets --target "$TARGET"
+          cargo +stable build --locked --release --target "$TARGET"
+          readelf -l "target/$TARGET/release/pbcp" > program-headers.txt
+          if grep -q INTERP program-headers.txt; then
+            echo "::error::Binary requires a dynamic interpreter"
+            exit 1
+          fi
+          "target/$TARGET/release/pbcp" --no-config --backend=osc52 --diagnose
+      - name: Package binary and provenance
+        run: |
+          mkdir -p staging dist
+          cp "target/$TARGET/release/pbcp" staging/pbcp
+          printf 'version=%s\ncommit=%s\ntarget=%s\n' \
+            "$VERSION" "$GITHUB_SHA" "$TARGET" > staging/BUILD.txt
+          archive="pbcp-$VERSION-$TARGET.tar.gz"
+          tar -czf "dist/$archive" -C staging pbcp BUILD.txt
+          (cd dist && sha256sum "$archive" > "$archive.sha256")
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: pbcp-${{ matrix.target }}-${{ github.sha }}
+          path: dist/*
+          if-no-files-found: error
+          retention-days: 14
+
+  assemble:
+    name: Verify release bundle
+    needs: [version, build]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: pbcp-*
+          path: dist
+          merge-multiple: true
+      - name: Verify complete release and checksums
+        working-directory: dist
+        run: |
+          test -f "pbcp-$VERSION-x86_64-unknown-linux-musl.tar.gz"
+          test -f "pbcp-$VERSION-aarch64-unknown-linux-musl.tar.gz"
+          sha256sum --check ./*.sha256
+          sha256sum ./*.tar.gz > SHA256SUMS
+          for target in x86_64-unknown-linux-musl aarch64-unknown-linux-musl; do
+            printf 'version=%s\ncommit=%s\ntarget=%s\n' \
+              "$VERSION" "$GITHUB_SHA" "$target" > expected-build.txt
+            tar -xOf "pbcp-$VERSION-$target.tar.gz" BUILD.txt | cmp - expected-build.txt
+          done
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-bundle-${{ github.sha }}
+          path: |
+            dist/*.tar.gz
+            dist/SHA256SUMS
+          if-no-files-found: error
+          retention-days: 14
+
+  release:
+    name: Publish GitHub Release
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [version, assemble]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      VERSION: ${{ needs.version.outputs.version }}
+      PREVIOUS_TAG: ${{ needs.version.outputs.previous }}
+      RELEASE_TAG: v${{ needs.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: release-bundle-${{ github.sha }}
+          path: dist
+      - name: Recheck publication assets
+        working-directory: dist
+        run: sha256sum --check SHA256SUMS
+      - name: Publish once, or resume an interrupted draft
+        working-directory: dist
+        run: bash ../.github/scripts/publish.sh
